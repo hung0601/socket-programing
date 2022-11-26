@@ -6,6 +6,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <semaphore.h>
 #include "linklist.h"
 
 #define PORT 5550 /* Port that will be opened */
@@ -20,6 +21,7 @@ int bytes_sent, bytes_received;
 struct sockaddr_in server; /* server's address information */
 struct sockaddr_in client; /* client's address information */
 int sin_size;
+sem_t x;
 
 void *sendUpdateReq(void *vargp)
 {
@@ -27,7 +29,7 @@ void *sendUpdateReq(void *vargp)
     AccountLst *ptr;
     while (1)
     {
-        sleep(5);
+        sleep(10);
         ms.ms_type = UPDATE;
         ms.dt_type = NONE;
         if (clientLst != NULL)
@@ -51,44 +53,56 @@ void *sendUpdateReq(void *vargp)
 
 void *listenMessage(void *varqp)
 {
-    AccountLst *acc = (AccountLst *)varqp;
+    AccountLst *acc;
     Message ms;
+    Message send_msg;
     int bytes_received;
+    int bytes_sent;
     while (1)
     {
-        // printf("con: %d\n", acc->conn_sock);
+
+        acc = (AccountLst *)varqp;
         bytes_received = recv(acc->conn_sock, &ms, sizeof(ms), 0); // blocking
         if (bytes_received <= 0)
         {
-            // printf("Connection closed1\n");
             continue;
         }
         else
         {
+            // printf("%d\n", ms.ms_type);
             switch (ms.ms_type)
             {
             case RES_UPDATE:
                 if (ms.dt_type == STRING_LIST)
                 {
-                    printf("Recv file lst from %s:%d\n", inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
+                    // printf("Recv file lst from %s:%d\n", inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
+
                     for (int i = 0; i < ms.size; i++)
                     {
-
                         if (ms.value.filelst[i] != NULL && strcmp(ms.value.filelst[i], ""))
                         {
-                            printf("%s\n", ms.value.filelst[i]);
+                            // printf("%s\n", ms.value.filelst[i]);
                             strcpy(acc->fileLst[i], ms.value.filelst[i]);
                         }
                     }
+                    acc->size = ms.size;
                 }
                 break;
-
+            case FIND:
+                send_msg = findClientHaveFile(clientLst, ms.value.buff);
+                // printf("thread %ld connsock %d. to %s:%d\n", acc->thread_id, acc->conn_sock, inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
+                bytes_sent = send(acc->conn_sock, &send_msg, sizeof(send_msg), 0);
+                if (bytes_sent <= 0)
+                {
+                    printf("\nConnection closed!\n");
+                    return NULL;
+                }
+                break;
             default:
                 break;
             }
         }
     }
-
 
     return NULL;
 }

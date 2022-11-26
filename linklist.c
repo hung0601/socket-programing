@@ -70,6 +70,30 @@ void deleteLstByClient(AccountLst **accLst, struct sockaddr_in client)
     }
 }
 
+Message findClientHaveFile(AccountLst *acc, char *fileName)
+{
+    Message msg;
+    AccountLst *ptr;
+    ptr = acc;
+    msg.ms_type = RES_FIND;
+    msg.dt_type = ADDRESS_LIST;
+    msg.size = 0;
+    while (ptr != NULL)
+    {
+        for (int i = 0; i < ptr->size; i++)
+        {
+
+            if (!strcmp(ptr->fileLst[i], fileName))
+            {
+                msg.value.addrLst[msg.size++] = ptr->client;
+                break;
+            }
+        }
+        ptr = ptr->next;
+    }
+    return msg;
+}
+
 void freeLst(AccountLst **acc)
 {
     AccountLst *ptr = *acc;
