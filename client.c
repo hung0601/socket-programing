@@ -44,7 +44,7 @@ void *getSearchFileName(void *vargp)
                 printf("Connection closed!\n");
                 exit(0);
             }
-                }
+        }
     }
 }
 
@@ -104,7 +104,7 @@ int main()
         bytes_received = recv(client_sock, &ms, sizeof(ms), 0); // blocking
         if (bytes_received <= 0)
         {
-            printf("\nConnection closed");
+            printf("\nConnection closed\n");
             break;
         }
         else
@@ -133,6 +133,8 @@ int main()
                         break;
                     }
                 }
+                printf("so luong file: %d\n", i);
+
                 closedir(dr);
                 bytes_sent = send(client_sock, &send_msg, sizeof(send_msg), 0);
                 if (bytes_sent <= 0)
@@ -157,3 +159,7 @@ int main()
     close(client_sock);
     return 0;
 }
+
+
+// nếu như đang gửi dữ liệu lên server để update các file mà client đang giữ,  mà người dùng gửi yêu cầu tìm file đến thì server có vẻ sẽ bị lỗi  
+// có thể nó đang gặp lỗi dòng 100 bên client, 138 bên server.

@@ -75,13 +75,15 @@ void *listenMessage(void *varqp)
             case RES_UPDATE:
                 if (ms.dt_type == STRING_LIST)
                 {
-                    // printf("Recv file lst from %s:%d\n", inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
+                    printf("Recv file lst from %s:%d\n", inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
+
+                    printf("%d\n", ms.size);;
 
                     for (int i = 0; i < ms.size; i++)
                     {
                         if (ms.value.filelst[i] != NULL && strcmp(ms.value.filelst[i], ""))
                         {
-                            // printf("%s\n", ms.value.filelst[i]);
+                            printf("%s\n", ms.value.filelst[i]);
                             strcpy(acc->fileLst[i], ms.value.filelst[i]);
                         }
                     }
@@ -91,6 +93,10 @@ void *listenMessage(void *varqp)
             case FIND:
                 send_msg = findClientHaveFile(clientLst, ms.value.buff);
                 // printf("thread %ld connsock %d. to %s:%d\n", acc->thread_id, acc->conn_sock, inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
+                // for (int i = 0; i < send_msg.size; i++)
+                // {
+                //     printf("    %s:%d\n", inet_ntoa(send_msg.value.addrLst[i].sin_addr), ntohs(send_msg.value.addrLst[i].sin_port));
+                // }
                 bytes_sent = send(acc->conn_sock, &send_msg, sizeof(send_msg), 0);
                 if (bytes_sent <= 0)
                 {
