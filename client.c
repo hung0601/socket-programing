@@ -12,40 +12,143 @@
 #define SERVER_ADDR "127.0.0.1"
 #define SERVER_PORT 5550
 
-int client_sock;
+int client_sock, countClientReqConn=0;
 struct sockaddr_in server_addr;
+struct sockaddr_in clientReqConn[MAX_LEN];
+
 
 void *getSearchFileName(void *vargp)
 {
-    char fileName[BUFF_SIZE];
+    char fileName[BUFF_SIZE], port[BUFF_SIZE], address[BUFF_SIZE];
     int bytes_sent;
     Message ms;
+    int choice, choiceOfConnect, choiceClient=0;
     printf("Welcome to P2P file tranfer application\n");
-    printf("Input file name and press ENTER to search:\n");
     while (1)
     {
-        memset(fileName, '\0', (strlen(fileName)) + 1);
-        fgets(fileName, BUFF_SIZE, stdin);
-        fileName[strlen(fileName) - 1] = '\0';
+        printf("------------------------Menu---------------------\n");
+        printf("1. Input file name to search\n");
+        printf("2. Input IP address and Port of client to request connect\n");
+        printf("3. Answer connection request\n");
+        printf("4. Exit\n");
+        printf("-------------------------------------------------\n\n");
 
-        if (!strcmp(fileName, ""))
+        printf("Please enter your choice: ");
+        scanf("%d", &choice);
+        while(getchar() != '\n');
+
+
+        switch (choice)
         {
-            printf("Goodbye\n");
-            exit(0);
-        }
-        else
-        {
-            ms.ms_type = FIND;
-            ms.dt_type = STRING;
-            strcpy(ms.value.buff, fileName);
-            bytes_sent = send(client_sock, &ms, sizeof(ms), 0);
-            if (bytes_sent <= 0)
+            case 1:
             {
-                printf("Connection closed!\n");
-                exit(0);
+                printf("Input file name and press ENTER to search:\n");
+
+                memset(fileName, '\0', (strlen(fileName)) + 1);
+                fgets(fileName, BUFF_SIZE, stdin);
+                fileName[strlen(fileName) - 1] = '\0';
+                while(getchar() != '\n');
+                    
+                ms.ms_type = FIND;
+                ms.dt_type = STRING;
+                strcpy(ms.value.buff, fileName);
+                bytes_sent = send(client_sock, &ms, sizeof(ms), 0);
+                if (bytes_sent <= 0)
+                {
+                    printf("Connection closed!\n");
+                    exit(0);
+                }
             }
+            break;
+
+    
+            case 2: 
+                printf("Input IP address Of client:\n");
+
+                memset(address, '\0', (strlen(address)) + 1);
+                fgets(address, BUFF_SIZE, stdin);
+                address[strlen(address) - 1] = '\0';
+
+
+                printf("Input Port Of client:\n");
+
+                memset(port, '\0', (strlen(port)) + 1);
+                fgets(port, BUFF_SIZE, stdin);
+                port[strlen(port) - 1] = '\0';
+
+                ms.ms_type = SELECT;
+                ms.dt_type = ADDRESS;
+                ms.value.addr.sin_family = AF_INET;
+                ms.value.addr.sin_port = htons(atoi(port));
+                ms.value.addr.sin_addr.s_addr = inet_addr(address);
+                bytes_sent = send(client_sock, &ms, sizeof(ms), 0);
+                if (bytes_sent <= 0)
+                {
+                        printf("Connection closed!\n");
+                        exit(0);
+                }
+            
+            break;
+
+            // cần phải trả lời đồng ý hay từ chối cho kết nối ? và kết nối với client nào, thì nhập vào từ bàn phím
+            // phải trả lời cho từng trường hợp đồng ý hay từ chối 
+            
+            case 3: 
+                // port và Ip address này phải thuộc mảng các client đã gửi yêu cầu kết nối , nếu không thì ,
+                memset( &ms, 0, sizeof(Message));
+                ms.ms_type = RES_SELECT;
+
+
+                printf("Clients request connection:\n");
+                for(int i= 0; i< countClientReqConn; i++) {
+                    // printf(" %d - %d\n", atoi(port), ntohs(clientReqConn[i].sin_port));
+                    // printf(" %s - %s\n", inet_ntoa(ms.value.addr.sin_addr), inet_ntoa(clientReqConn[i].sin_addr));
+                    printf("    %d. %s:%d\n", i+1,  inet_ntoa(clientReqConn[i].sin_addr), ntohs(clientReqConn[i].sin_port));
+                } 
+
+                printf("\nThe client you choose is: ");
+                scanf("%d", &choiceClient);
+
+                if (choiceClient > countClientReqConn) 
+                {
+                    printf("Invalid selection.\n");
+                    continue;
+                }
+                else {
+                    ms.value.addr.sin_family = AF_INET;
+                    ms.value.addr.sin_port = clientReqConn[choiceClient -1].sin_port;
+                    ms.value.addr.sin_addr.s_addr = clientReqConn[choiceClient - 1].sin_addr.s_addr;
+                }
+
+                printf("\n1. Accept\n");
+                printf("2. Reject\n\n");
+                printf("Your choice is : ");
+                scanf("%d", &choiceOfConnect);
+
+                if (choiceOfConnect == 1){
+                    ms.dt_type = ADDRESS;
+                }
+                else 
+                    ms.dt_type = NONE;
+                
+
+                bytes_sent = send(client_sock, &ms, sizeof(ms), 0);
+
+                
+
+            break;
+
+            case 4: 
+                // Thoát nhưng chưa xóa dữ liệu bên server 
+                printf("Goodbye.\n");
+                exit(0);
+            break;
+
+            default: 
+                printf("Choice does not exist.\n");
         }
     }
+    
 }
 
 void getFileLst(char **fileLst)
@@ -133,7 +236,6 @@ int main()
                         break;
                     }
                 }
-                printf("so luong file: %d\n", i);
 
                 closedir(dr);
                 bytes_sent = send(client_sock, &send_msg, sizeof(send_msg), 0);
@@ -144,13 +246,36 @@ int main()
                 }
                 break;
             case RES_FIND:
-                printf("Client list:\n");
+                printf("\nClient list:\n");
                 for (int i = 0; i < ms.size; i++)
                 {
                     printf("    %s:%d\n", inet_ntoa(ms.value.addrLst[i].sin_addr), ntohs(ms.value.addrLst[i].sin_port));
                 }
                 break;
 
+            case SELECT:
+                printf("\nYou get a connection request to download files from client %s:%d.\n\n",
+                inet_ntoa(ms.value.addr.sin_addr), ntohs(ms.value.addr.sin_port));
+                clientReqConn[countClientReqConn].sin_family =  AF_INET;
+                clientReqConn[countClientReqConn].sin_port =  ms.value.addr.sin_port;
+                clientReqConn[countClientReqConn].sin_addr.s_addr =  ms.value.addr.sin_addr.s_addr;
+
+                countClientReqConn++;
+            break;
+
+            case RES_SELECT:
+                // printf("\nres_select: %s\n",ms.value.buff);
+                printf("\nResponse of request connection: ");
+                if (!strcmp(ms.value.buff, "yes"))
+                    printf("That client has approved to connect to download the file.\n");
+                else if  (!strcmp(ms.value.buff, "no"))
+                    printf("That client refused to connect to download the file.\n");
+                else if (!strcmp(ms.value.buff, "busy"))
+                    printf("That client is busy.\n");
+                else 
+                    printf("No matching client found.\n");
+
+            break;
             default:
                 break;
             }
@@ -160,6 +285,5 @@ int main()
     return 0;
 }
 
-
-// nếu như đang gửi dữ liệu lên server để update các file mà client đang giữ,  mà người dùng gửi yêu cầu tìm file đến thì server có vẻ sẽ bị lỗi  
+// nếu như đang gửi dữ liệu lên server để update các file mà client đang giữ,  mà người dùng gửi yêu cầu tìm file đến thì server có vẻ sẽ bị lỗi
 // có thể nó đang gặp lỗi dòng 100 bên client, 138 bên server.
