@@ -21,8 +21,10 @@ typedef enum
     SELECT,
     RES_SELECT,
     CONNECT,
-    END_CONNECT,
-    SEND_FILE
+    SELECT_FILE,
+    SEND_FILE,
+    END_FILE,
+    END_CONNECT
 } msg_type;
 
 typedef enum

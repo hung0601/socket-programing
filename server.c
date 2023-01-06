@@ -175,6 +175,12 @@ void *listenMessage(void *varqp)
 
                     acc->st= BUSY;
 
+                    clientNode = searchByClient(clientLst, ms.value.addr);
+                    if(clientNode == NULL) 
+                        printf("Da xay ra loi\n");
+
+                    clientNode->st= BUSY;
+
                 }else
                 {
                     strcpy(send_msg.value.buff, "no");
@@ -199,6 +205,10 @@ void *listenMessage(void *varqp)
                 }
             }
 
+            break;
+
+            case END_CONNECT:
+                acc->st = ONLINE;
             break;
 
             // cần tạo ra 1 case mới để nhận res_select từ client , sau khi nhận xong thì sẽ gửi đến client yêu cầu , còn client nào mà không được đồng ý, 
@@ -228,7 +238,7 @@ int main()
         return 0;
     }
 
-    // Step 2: Bind address to socket
+    // Step 2: Bind address to socket`
     bzero(&server, sizeof(server));
     server.sin_family = AF_INET;
     server.sin_port = htons(PORT);              /* Remember htons() from "Conversions" section? =) */
