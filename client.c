@@ -389,7 +389,7 @@ void *sendRequestToServer(void *vargp)
             {
                 ms.dt_type = ADDRESS;
 
-                pthread_create(&threadOfClientReceiveConn, NULL, clientRecvReqDown, NULL);
+                // pthread_create(&threadOfClientReceiveConn, NULL, clientRecvReqDown, NULL);
             }
             else
                 ms.dt_type = NONE;
@@ -509,7 +509,7 @@ int main()
                 if (!strcmp(ms.value.buff, "yes"))
                 {
                     printf("Aceept.\n\n");
-                    pthread_create(&threadOfClientRequestConn, NULL, clientSendReqDown, NULL);
+                    // pthread_create(&threadOfClientRequestConn, NULL, clientSendReqDown, NULL);
                 }
                 else if (!strcmp(ms.value.buff, "no"))
                     printf("Reject.\n\n");
