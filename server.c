@@ -37,11 +37,14 @@ void *sendUpdateReq(void *vargp)
             ptr = clientLst;
             while (ptr != NULL)
             {
-                bytes_sent = send(ptr->conn_sock, &ms, sizeof(ms), 0);
-                if (bytes_sent <= 0)
+                if (ptr->st == ONLINE)
                 {
-                    printf("\nConnection closed!\n");
-                    return NULL;
+                    bytes_sent = send(ptr->conn_sock, &ms, sizeof(ms), 0);
+                    if (bytes_sent <= 0)
+                    {
+                        printf("\nConnection closed!\n");
+                        return NULL;
+                    }
                 }
 
                 ptr = ptr->next;
@@ -50,6 +53,12 @@ void *sendUpdateReq(void *vargp)
     }
     return NULL;
 }
+
+//-----------------------------------------------
+//*                                             *
+//*         Listen message from client          *
+//*                                             *
+//-----------------------------------------------
 
 void *listenMessage(void *varqp)
 {
@@ -60,6 +69,7 @@ void *listenMessage(void *varqp)
     int bytes_sent;
     while (1)
     {
+        memset(&ms, 0, sizeof(Message));
 
         acc = (AccountLst *)varqp;
         bytes_received = recv(acc->conn_sock, &ms, sizeof(ms), 0); // blocking
@@ -69,21 +79,15 @@ void *listenMessage(void *varqp)
         }
         else
         {
-            // printf("%d\n", ms.ms_type);
             switch (ms.ms_type)
             {
             case RES_UPDATE:
                 if (ms.dt_type == STRING_LIST)
                 {
-                    printf("Recv file lst from %s:%d\n", inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
-
-                    printf("%d\n", ms.size);;
-
                     for (int i = 0; i < ms.size; i++)
                     {
                         if (ms.value.filelst[i] != NULL && strcmp(ms.value.filelst[i], ""))
                         {
-                            printf("%s\n", ms.value.filelst[i]);
                             strcpy(acc->fileLst[i], ms.value.filelst[i]);
                         }
                     }
@@ -92,11 +96,7 @@ void *listenMessage(void *varqp)
                 break;
             case FIND:
                 send_msg = findClientHaveFile(clientLst, ms.value.buff);
-                // printf("thread %ld connsock %d. to %s:%d\n", acc->thread_id, acc->conn_sock, inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port));
-                // for (int i = 0; i < send_msg.size; i++)
-                // {
-                //     printf("    %s:%d\n", inet_ntoa(send_msg.value.addrLst[i].sin_addr), ntohs(send_msg.value.addrLst[i].sin_port));
-                // }
+
                 bytes_sent = send(acc->conn_sock, &send_msg, sizeof(send_msg), 0);
                 if (bytes_sent <= 0)
                 {
@@ -104,6 +104,26 @@ void *listenMessage(void *varqp)
                     return NULL;
                 }
                 break;
+
+            // yêu cầu connect gửi đến client B từ client A
+            case SELECT:
+                switchCaseSelect(clientLst, acc, ms);
+                break;
+
+            // response cảu yêu cầu kết nối từ client B gửi tới client A
+            case RES_SELECT:
+                switchCaseResponseSelect(clientLst, acc, ms);
+
+                break;
+
+            // khi 2 client ngưng kết nối, sẽ gửi yêu cầu end_connect đến client để mở lại trạng thái hoạt động
+            case END_CONNECT:
+                acc->st = ONLINE;
+                break;
+
+            case END:
+                printf("\nClient %s:%d disconnected.\n", inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port)); /* prints client's IP */
+                acc->st = OFFLINE;
             default:
                 break;
             }
@@ -124,7 +144,7 @@ int main()
         return 0;
     }
 
-    // Step 2: Bind address to socket
+    // Step 2: Bind address to socket`
     bzero(&server, sizeof(server));
     server.sin_family = AF_INET;
     server.sin_port = htons(PORT);              /* Remember htons() from "Conversions" section? =) */

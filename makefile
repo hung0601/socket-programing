@@ -6,7 +6,7 @@ debug: CFLAGS += -g
 debug: client server
 
 client: client.o 
-	${CC} client.o -o client -lpthread
+	${CC} client.o -o client -lpthread -lssl -lcrypto
 
 server: server.o linklist.o
 	${CC} server.o linklist.o -o server -lpthread

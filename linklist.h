@@ -21,8 +21,11 @@ typedef enum
     SELECT,
     RES_SELECT,
     CONNECT,
+    SELECT_FILE,
+    SEND_FILE,
+    END_FILE,
     END_CONNECT,
-    SEND_FILE
+    END
 } msg_type;
 
 typedef enum
@@ -76,3 +79,5 @@ void addLogLst(AccountLst **accLst, struct sockaddr_in client, int conn_sock);
 void deleteLstByClient(AccountLst **accLst, struct sockaddr_in client);
 void freeLst(AccountLst **acc); // free memory
 Message findClientHaveFile(AccountLst *acc, char *fileName);
+void switchCaseSelect(AccountLst *clientLst, AccountLst *acc, Message ms);
+void switchCaseResponseSelect(AccountLst *clientLst, AccountLst *acc, Message ms);
