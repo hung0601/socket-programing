@@ -24,7 +24,8 @@ typedef enum
     SELECT_FILE,
     SEND_FILE,
     END_FILE,
-    END_CONNECT
+    END_CONNECT,
+    END
 } msg_type;
 
 typedef enum

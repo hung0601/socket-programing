@@ -121,6 +121,9 @@ void *listenMessage(void *varqp)
                 acc->st = ONLINE;
                 break;
 
+            case END:
+                printf("\nClient %s:%d disconnected.\n", inet_ntoa(acc->client.sin_addr), ntohs(acc->client.sin_port)); /* prints client's IP */
+                acc->st = OFFLINE;
             default:
                 break;
             }

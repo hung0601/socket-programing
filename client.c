@@ -24,18 +24,6 @@ int countFileLst = 0;
 bool waitForReplyFromOtherClient = false;
 pthread_t threadOfClientRequestConn, threadOfClientReceiveConn;
 
-// ban đầu 2 thằng liên kết với nhau.
-// thằng gửi yêu cầu kết nối có tư cách là client
-// thằng nhận yêu cầu kết nối có tư cách là server
-// đầu tiên thằng server sẽ gửi ms.ms_type = connect đến thằng client,
-// kèm theo list file mà thăngf server đang nắm giữ
-// thằng client chọn cái nào thì gửi lên cho thằng server
-// sau đó thằng server sẽ đọc file và gửi lại cho thằng client
-// bao giờ thằng client chọn 0 - lúc này sẽ gửi yêu cầu end_connect lên cho thằng server,
-// đồng thời cũng kết thúc chương trình thằng client
-
-// thằng server nhận được yêu cầu kết thúc thì cũng kthuc chương trình
-
 void hashFile(char *filename, char *c)
 {
     int i;
@@ -60,9 +48,16 @@ void hashFile(char *filename, char *c)
     fclose(inFile);
 }
 
+
+// chỉ cho phép 2 client kết nối 2 phút với nhau, 
+// và phải end connect trước khi thời điểm trên,
+// vì luồng chính của từng client sleep 2 phút
+// nếu không end connect thì lúc này 2 client sẽ là trạng thái BUSY 
+// sẽ không thể nhận được bất kì thông điệp nào từ server. 
+
 void *clientSendReqDown()
 {
-    printf("Bắt đầu quá trình kết nối.\n\n");
+    printf("\nYou have 2 minutes to connect, you must disconnect before the above time.\n");
 
     int choice, choiceInside;
     int client_sock_p2p;
@@ -163,6 +158,10 @@ void *clientSendReqDown()
                         }
                         break;
 
+                        // nhận được mã hash từ client kia kèm theo tín hiệu end file
+                        // lúc này sẽ mã hóa file mới nhận
+                        // và so sánh 
+                        // nếu giống nhau thì thông báo thành công và ngược lại
                         case END_FILE:
                             fclose(fp);
                             // printf("value: %s - %ld\n", recv_msg.value.buff, strlen(recv_msg.value.buff));
@@ -211,6 +210,7 @@ void *clientSendReqDown()
 
 void *clientRecvReqDown()
 {
+    printf("\nYou have 2 minutes to connect, you must disconnect before the above time.\n");
     printf("\nList file of you:\n");
     int listen_sock, conn_sock;
     struct sockaddr_in server;
@@ -278,6 +278,8 @@ void *clientRecvReqDown()
         {
             switch (recv_msg.ms_type)
             {
+                // nhận được tín hiệu yêu cầu download file từ client kia
+                // đọc file và gửi đi 
             case SELECT_FILE:
                 count = 0;
                 memset(buffer, '\0', (strlen(buffer)) + 1);
@@ -294,9 +296,9 @@ void *clientRecvReqDown()
                 send_msg.ms_type = SEND_FILE;
                 send_msg.dt_type = STRING;
 
+                // cứ đọc 10 dòng sẽ gửi 1 lần.
                 while (fgets(buffer, 1024, fp) != NULL)
                 {
-                    // Xuất từng dòng ra màn hình
                     count++;
                     strcat(send_msg.value.buff, buffer);
                     if (count % 10 == 0)
@@ -318,6 +320,8 @@ void *clientRecvReqDown()
                 printf("\nSent the content of file %s :\n%s \n", nameFile, send_msg.value.buff);
                 memset(&send_msg, 0, sizeof(Message));
 
+                // sau khi kết thúc thì gửi hash file kèm tín hiệu end file 
+                // để client kia biết đã gửi xong file
                 hashFile(nameFile, hashFileReturn);
                 strcpy(send_msg.value.buff, hashFileReturn);
                 send_msg.dt_type = STRING;
@@ -330,7 +334,7 @@ void *clientRecvReqDown()
                 send_msg.ms_type = END_CONNECT;
                 send_msg.dt_type = NONE;
 
-                bytes_sent = send(conn_sock, &send_msg, sizeof(send_msg), 0);
+                bytes_sent = send(client_sock, &send_msg, sizeof(send_msg), 0);
 
                 break;
             default:
@@ -417,10 +421,10 @@ void *sendRequestToServer(void *vargp)
                 printf("Connection closed!\n");
                 exit(0);
             }
-            sleep(30);
+            sleep(20);
             if (waitForReplyFromOtherClient)
             {
-                sleep(180);
+                sleep(120);
             }
 
             break;
@@ -487,6 +491,10 @@ void *sendRequestToServer(void *vargp)
         case 4:
             // Thoát nhưng chưa xóa dữ liệu bên server
             printf("Goodbye.\n");
+            memset(&ms, 0, sizeof(Message));
+            ms.ms_type = END;
+            ms.dt_type = NONE;
+            bytes_sent = send(client_sock, &ms, sizeof(ms), 0);
             exit(0);
             break;
 
