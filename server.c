@@ -37,11 +37,14 @@ void *sendUpdateReq(void *vargp)
             ptr = clientLst;
             while (ptr != NULL)
             {
-                bytes_sent = send(ptr->conn_sock, &ms, sizeof(ms), 0);
-                if (bytes_sent <= 0)
+                if (ptr->st == ONLINE)
                 {
-                    printf("\nConnection closed!\n");
-                    return NULL;
+                    bytes_sent = send(ptr->conn_sock, &ms, sizeof(ms), 0);
+                    if (bytes_sent <= 0)
+                    {
+                        printf("\nConnection closed!\n");
+                        return NULL;
+                    }
                 }
 
                 ptr = ptr->next;
@@ -66,8 +69,7 @@ void *listenMessage(void *varqp)
     int bytes_sent;
     while (1)
     {
-        memset( &ms, 0, sizeof(Message));
-
+        memset(&ms, 0, sizeof(Message));
 
         acc = (AccountLst *)varqp;
         bytes_received = recv(acc->conn_sock, &ms, sizeof(ms), 0); // blocking
@@ -94,7 +96,7 @@ void *listenMessage(void *varqp)
                 break;
             case FIND:
                 send_msg = findClientHaveFile(clientLst, ms.value.buff);
-            
+
                 bytes_sent = send(acc->conn_sock, &send_msg, sizeof(send_msg), 0);
                 if (bytes_sent <= 0)
                 {
@@ -106,25 +108,25 @@ void *listenMessage(void *varqp)
             // yêu cầu connect gửi đến client B từ client A
             case SELECT:
                 switchCaseSelect(clientLst, acc, ms);
-            break;
+                break;
 
             // response cảu yêu cầu kết nối từ client B gửi tới client A
             case RES_SELECT:
                 switchCaseResponseSelect(clientLst, acc, ms);
 
-            break;
+                break;
 
             // khi 2 client ngưng kết nối, sẽ gửi yêu cầu end_connect đến client để mở lại trạng thái hoạt động
             case END_CONNECT:
                 acc->st = ONLINE;
-            break;
+                break;
 
             default:
                 break;
             }
         }
     }
-    
+
     return NULL;
 }
 

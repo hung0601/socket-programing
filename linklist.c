@@ -187,9 +187,6 @@ void switchCaseResponseSelect(AccountLst *clientLst, AccountLst *acc, Message ms
         strcpy(send_msg.value.buff, "no");
     }
 
-    printf("Value %s:%d \n",
-           inet_ntoa(ms.value.addr.sin_addr), ntohs(ms.value.addr.sin_port));
-    printf("%s\n", send_msg.value.buff);
 
     // memset( &ms, 0, sizeof(Message));
 
